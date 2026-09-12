@@ -1,34 +1,58 @@
+SUMMARY_PROMPT = """
+You are an educational revision assistant.
+
+Using only the study material below, write a concise revision summary.
+Use clear, simple language.
+Do not add information that is not present in the material.
+
+Study material:
+{study_text}
 """
-Central place for all AI prompts.
-Member 2 (Generative AI Lead) will use these inside ai_functions.py
-when writing the real (non-mock) logic.
+
+
+KEY_POINTS_PROMPT = """
+Using only the study material below, extract up to 10 important
+concepts, definitions, facts, and processes.
+
+- Use short bullet points.
+- Include only distinct, useful points.
+- Keep closely related facts together.
+- Return fewer points when the material is short.
+- Do not repeat information or add outside facts.
+- Return only the bullet points, without an introduction.
+
+Study material:
+{study_text}
 """
 
-SUMMARY_PROMPT = """You are an educational assistant.
-Here is the student's study material:
 
-{study_material}
+MCQ_PROMPT = """
+Using only the study material below, generate {count} multiple-choice questions
+that test important concepts.
 
-Create a concise exam revision summary based ONLY on the provided material.
-Do not add information that is not present in the material."""
+For every question:
+- Provide exactly four options: A, B, C, and D.
+- State the correct answer.
+- Give a one-sentence explanation based only on the material.
 
-KEY_POINTS_PROMPT = """Using ONLY the study material below, list the most
-important key concepts and definitions a student should remember.
-
-Study material:
-{study_material}"""
-
-MCQ_PROMPT = """Generate {num_questions} multiple choice questions using ONLY
-the following study material. Each question must have exactly 4 options
-(A, B, C, D) and one correct answer. Do not include information that is
-not present in the material.
+Do not add information outside the material.
 
 Study material:
-{study_material}"""
+{study_text}
+"""
 
-QUESTION_PROMPT = """Generate short practice questions using ONLY the
-following study material, focused on testing understanding of the key
-concepts.
+
+PRACTICE_QUESTIONS_PROMPT = """
+Using only the study material below, create up to 5 short-answer
+practice questions.
+
+- Focus on important definitions, concepts, comparisons, and processes.
+- Each question must test a distinct idea or relationship.
+- Do not ask the same question using different wording.
+- Return fewer questions if the material cannot support 5 useful ones.
+- Every question must be answerable from the supplied material.
+- Return only numbered questions, without answers or an introduction.
 
 Study material:
-{study_material}"""
+{study_text}
+"""

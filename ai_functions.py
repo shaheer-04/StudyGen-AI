@@ -1,50 +1,106 @@
-"""
-NOTE FOR THE TEAM:
-These are MOCK (fake) functions. They let Member 1 build and test the
-Streamlit UI today without needing an AI API key yet.
+import os
+from pathlib import Path
 
-Member 2 (Generative AI Lead) will later replace the INSIDE of each
-function with a real call to the Generative AI API, using the prompt
-templates in prompts.py.
+from dotenv import load_dotenv
+from google import genai
 
-IMPORTANT: Keep the function names and return formats exactly the same
-as below, so app.py does not need to change when Member 2's real
-version is merged in.
-"""
+from prompts import (
+    SUMMARY_PROMPT,
+    KEY_POINTS_PROMPT,
+    MCQ_PROMPT,
+    PRACTICE_QUESTIONS_PROMPT,
+)
+
+
+# Read .env from the same folder as this file.
+load_dotenv(Path(__file__).with_name(".env"))
+
+
+def call_ai(prompt: str) -> str:
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY is missing from .env.")
+
+    model = os.getenv("GEMINI_MODEL")
+
+    if not model:
+        raise ValueError("GEMINI_MODEL is missing from .env.")
+
+    client = genai.Client(api_key=api_key)
+
+    response = client.interactions.create(
+        model=model,
+        input=prompt,
+    )
+
+    if not response.output_text:
+        raise RuntimeError("Gemini returned no text. Please try again.")
+
+    return response.output_text.strip()
 
 
 def generate_summary(study_text: str) -> str:
-    # Returns: a single string
-    return ("This is a placeholder summary of the uploaded material. "
-            "Member 2 will connect this to the real AI API.")
+    if not study_text.strip():
+        raise ValueError("Please provide some study material.")
+
+    prompt = SUMMARY_PROMPT.format(study_text=study_text)
+    return call_ai(prompt)
 
 
-def generate_key_points(study_text: str) -> list:
-    # Returns: a list of strings
-    return [
-        "Placeholder key point 1",
-        "Placeholder key point 2",
-        "Placeholder key point 3",
-    ]
+def generate_key_points(study_text: str) -> str:
+    if not study_text.strip():
+        raise ValueError("Please provide some study material.")
+
+    prompt = KEY_POINTS_PROMPT.format(study_text=study_text)
+    return call_ai(prompt)
 
 
-def generate_mcqs(study_text: str, num_questions: int = 5) -> list:
-    # Returns: a list of dicts, each shaped like:
-    # {"question": "...", "options": {"A": "...", "B": "...", "C": "...", "D": "..."}, "answer": "B"}
-    mcqs = []
-    for i in range(num_questions):
-        mcqs.append({
-            "question": f"Placeholder question {i + 1}?",
-            "options": {"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
-            "answer": "B",
-        })
-    return mcqs
+def generate_mcqs(study_text: str, count: int = 5) -> str:
+    if not study_text.strip():
+        raise ValueError("Please provide some study material.")
+
+    if not isinstance(count, int) or not 1 <= count <= 10:
+        raise ValueError("MCQ count must be between 1 and 10.")
+
+    prompt = MCQ_PROMPT.format(
+        study_text=study_text,
+        count=count,
+    )
+    return call_ai(prompt)
 
 
-def generate_questions(study_text: str) -> list:
-    # Returns: a list of strings
-    return [
-        "Placeholder practice question 1",
-        "Placeholder practice question 2",
-        "Placeholder practice question 3",
-    ]
+def generate_practice_questions(study_text: str) -> str:
+    if not study_text.strip():
+        raise ValueError("Please provide some study material.")
+
+    prompt = PRACTICE_QUESTIONS_PROMPT.format(
+        study_text=study_text,
+    )
+    return call_ai(prompt)
+
+
+
+
+
+# Runs only when you execute this file directly.
+if __name__ == "__main__":
+    sample_text = """
+    HTML defines the structure of a web page.
+    CSS controls its appearance and layout.
+    JavaScript adds interactivity to web pages.
+    """
+
+    try:
+        print("Generating key points...\n")
+        print(generate_key_points(sample_text))
+
+        #print("\nGenerating MCQs...\n")
+        #print(generate_mcqs(sample_text, count=3))
+
+        #print("\nGenerating practice questions...\n")
+        #print(generate_practice_questions(sample_text))
+    except Exception as error:
+        # Show the error type without exposing request details or secrets.
+        print(f"Test failed: {type(error).__name__}")
+        print("Check your .env settings and API access.")
