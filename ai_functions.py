@@ -66,6 +66,27 @@ def call_ai(prompt: str, max_tokens: int = 512) -> str:
     return text.strip()
 
 
+def parse_mcqs(text: str) -> list:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines or len(lines) % 6 or len(lines) > 18:
+        raise RuntimeError("MCQ formatting was invalid. No incomplete quiz was saved.")
+    questions = []
+    for start in range(0, len(lines), 6):
+        block = lines[start:start + 6]
+        values = []
+        for prefix, line in zip(["Q", "A", "B", "C", "D", "Answer"], block):
+            match = re.fullmatch(re.escape(prefix) + r":\s*(.+)", line)
+            if not match:
+                raise RuntimeError("MCQ formatting was invalid. No incomplete quiz was saved.")
+            values.append(match.group(1).strip())
+        if values[5] not in "ABCD" or len(values[5]) != 1:
+            raise RuntimeError("An MCQ had an invalid answer letter.")
+        if len({v.casefold() for v in values[1:5]}) != 4:
+            raise RuntimeError("An MCQ had duplicate options.")
+        questions.append(dict(question=values[0], options=dict(zip("ABCD", values[1:5])), answer=values[5]))
+    return questions
+
+
 def generate_revision_kit(study_text: str, include_flashcards: bool = False) -> dict:
     if not study_text.strip():
         raise ValueError("Please provide some study material.")
@@ -91,6 +112,7 @@ def generate_revision_kit(study_text: str, include_flashcards: bool = False) -> 
         if not value or (index < 4 and value.upper() == "NONE"):
             raise RuntimeError("The AI left a required section empty.")
         kit[names[index].lower()] = value
+    kit["mcqs"] = parse_mcqs(kit["mcqs"])
     if include_flashcards:
         cards = re.findall(r"^Q:\s*(.+)\nA:\s*(.+)", kit["flashcards"], re.MULTILINE)
         if not cards:

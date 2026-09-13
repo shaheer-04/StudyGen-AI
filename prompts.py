@@ -9,7 +9,15 @@ A summary of at most 40 words.
 Up to 3 distinct concise bullet points.
 [[MCQS]]
 3 brief MCQs (fewer if source cannot support 3 distinct questions).
-Each has four short options A/B/C/D and an Answer: letter.
+Use exactly six nonempty lines per MCQ, with a blank line between MCQs:
+Q: Question text
+A: First option
+B: Second option
+C: Third option
+D: Fourth option
+Answer: A
+The example answer letter must be replaced with the actual correct letter.
+Do not number questions or use Markdown in this section.
 Exactly one correct option. No explanations in this compact kit.
 [[PRACTICE_QUESTIONS]]
 Up to 3 distinct short-answer questions, without answers.
