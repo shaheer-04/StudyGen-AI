@@ -56,6 +56,16 @@ Revision Kit (Streamlit UI)
 | Member 4 | Testing, QA, documentation, demo preparation |
 
 ### 8. Key Design Decisions
+- The UI requests all kit sections in one Groq completion with an 800-token
+  output cap. This reduces duplicate input and request count, but does not
+  guarantee availability under account or shared token quotas.
+- Compact output includes up to 3 MCQs with answer letters, up to 3 practice
+  questions, and 1–2 optional flashcards. Separate feature functions remain
+  available for compatibility but the UI uses the combined function.
+- Results persist during the current Streamlit session. Identical submissions
+  reuse the previous kit. Changed inputs are labelled until a new kit succeeds.
+- Generation attempts are spaced by 65 seconds per session. This is a demo
+  safeguard, not a global quota manager. Truncated or malformed kits are rejected.
 - Output is grounded strictly in the student's own uploaded material, avoiding
   generic AI answers unrelated to their coursework.
 - Kept the architecture intentionally simple (no RAG, no database, no
@@ -67,8 +77,8 @@ Revision Kit (Streamlit UI)
 ### 9. Limitations (Current MVP)
 - Best suited for standard text-based PDFs; scanned/image-only PDFs are
   detected and flagged rather than processed.
-- Long documents are truncated to a safe length to keep generation fast and
-  reliable.
+- Documents exceeding 15,000 extracted characters are rejected with a request
+  for a shorter excerpt; content is not silently discarded.
 - Uses a shared/free-tier AI API key, subject to standard rate limits.
 
 ### 10. Future Improvements

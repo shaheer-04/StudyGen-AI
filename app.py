@@ -1,132 +1,88 @@
-import re
+import hashlib
+import time
+
 import streamlit as st
+from groq import APIConnectionError, APIStatusError, AuthenticationError, RateLimitError
+
+from ai_functions import generate_revision_kit
 from pdf_utils import extract_text
-from ai_functions import (
-    generate_summary,
-    generate_key_points,
-    generate_mcqs,
-    generate_practice_questions,
-    generate_flashcards,
-)
 
 st.set_page_config(page_title="StudyGen AI", page_icon="📚", layout="centered")
-
-MAX_CHARS = 15000
-
 st.title("📚 StudyGen AI")
 st.subheader("Turn Your Study Material Into a Revision Kit")
-st.markdown("---")
 
-
-def show_text(content: str):
-    """Displays AI-generated text with line breaks preserved properly in Streamlit."""
-    st.markdown(content.replace("\n", "  \n"))
-
-
-def parse_flashcards(text: str):
-    """Parses 'Q: ... / A: ...' blocks into a list of (question, answer) tuples."""
-    cards = []
-    blocks = re.split(r"\n\s*\n", text.strip())
-    for block in blocks:
-        q_match = re.search(r"Q:\s*(.+)", block)
-        a_match = re.search(r"A:\s*(.+)", block, re.DOTALL)
-        if q_match and a_match:
-            cards.append((q_match.group(1).strip(), a_match.group(1).strip()))
-    return cards
-
-
-# --------------------------------------------------------------------
-# 1. INPUT SECTION
-# --------------------------------------------------------------------
 st.header("1. Add Your Study Material")
-
-tab1, tab2 = st.tabs(["📄 Upload PDF", "✍️ Paste Text"])
-
+source = st.radio("Input method", ["Upload PDF", "Paste text"], horizontal=True)
 study_text = ""
+if source == "Upload PDF":
+    uploaded = st.file_uploader("Upload a text-based lecture PDF", type=["pdf"])
+    if uploaded is not None:
+        with st.spinner("Reading PDF..."):
+            text, error = extract_text(uploaded)
+        if error:
+            st.error("Could not read this PDF. Try an unencrypted, text-based PDF.")
+        else:
+            study_text = text or ""
+            st.caption(f"Read {len(study_text):,} characters.")
+else:
+    study_text = st.text_area("Paste your notes", height=250)
 
-with tab1:
-    uploaded_file = st.file_uploader("Upload your lecture PDF", type=["pdf"])
-    if uploaded_file is not None:
-        with st.spinner("Extracting text from PDF..."):
-            study_text, pdf_error = extract_text(uploaded_file)
-        if pdf_error:
-            st.error(pdf_error)
-        elif study_text:
-            st.success(f"Extracted {len(study_text)} characters from the PDF.")
+study_text = study_text.strip()
+too_long = len(study_text) > 15000
+if too_long:
+    st.warning("This version accepts up to 15,000 characters. Use a shorter excerpt or PDF.")
 
-with tab2:
-    pasted_text = st.text_area("Paste your notes here", height=250)
-    if pasted_text:
-        study_text = pasted_text
-
-st.markdown("---")
-
-# --------------------------------------------------------------------
-# 2. GENERATE BUTTON
-# --------------------------------------------------------------------
 st.header("2. Generate Your Revision Kit")
+include_flashcards = st.checkbox("Also generate flashcards", value=False)
+st.caption("Compact kit: summary, key points, up to 3 MCQs and practice questions, plus optional flashcards.")
+fingerprint = hashlib.sha256((study_text + str(include_flashcards)).encode()).hexdigest()
 
-include_flashcards = st.checkbox(
-    "🎴 Also generate flashcards",
-    value=False,
-)
-
-if st.button("🚀 Generate Revision Kit", type="primary"):
-    if not study_text or len(study_text.strip()) < 50:
-        st.warning("Please upload a PDF or paste at least a few sentences of study material first.")
+if st.button("Generate Revision Kit", type="primary", disabled=too_long):
+    if len(study_text) < 50:
+        st.warning("Please provide at least 50 characters of study material.")
+    elif st.session_state.get("kit_key") == fingerprint:
+        st.info("Showing your existing kit for these notes.")
+    elif time.time() < st.session_state.get("next_attempt", 0):
+        seconds = int(st.session_state.next_attempt - time.time()) + 1
+        st.warning(f"Please wait about {seconds} seconds before generating another kit.")
     else:
-        if len(study_text) > MAX_CHARS:
-            st.info(
-                f"Your material is quite long ({len(study_text)} characters). "
-                f"Using the first {MAX_CHARS} characters to keep things fast and reliable."
-            )
-            study_text = study_text[:MAX_CHARS]
-
+        # A per-session pause reduces bursts; provider-wide quotas still apply.
+        st.session_state.next_attempt = time.time() + 65
         try:
-            with st.spinner("AI is analyzing your material..."):
-                summary = generate_summary(study_text)
-                key_points = generate_key_points(study_text)
-                mcqs = generate_mcqs(study_text, count=5)
-                questions = generate_practice_questions(study_text)
-                flashcards_raw = generate_flashcards(study_text) if include_flashcards else None
+            with st.spinner("Preparing your revision kit..."):
+                kit = generate_revision_kit(study_text, include_flashcards)
+            st.session_state.kit = kit
+            st.session_state.kit_key = fingerprint
+        except RateLimitError:
+            st.error("AI quota reached. A minute limit may reset shortly; a daily limit needs its scheduled reset. Check Groq usage before retrying.")
+        except AuthenticationError:
+            st.error("The API key was rejected. Check the Groq key in your local or deployment settings.")
+        except APIConnectionError:
+            st.error("Could not reach Groq. Check your connection and try again later.")
+        except APIStatusError:
+            st.error("Groq could not process the request. Check model access and service status.")
+        except (ValueError, RuntimeError) as error:
+            st.error(str(error))
+        except Exception:
+            st.error("An unexpected error occurred. Your previous kit is still available.")
 
-            st.markdown("---")
+if "kit" in st.session_state:
+    if st.session_state.kit_key != fingerprint:
+        st.info("Showing the previous kit. Generate a new kit to apply your changed input or options.")
+    kit = st.session_state.kit
+    labels = ["Summary", "Key Concepts", "MCQs", "Practice Questions"]
+    if kit["flashcards"]:
+        labels.append("Flashcards")
+    tabs = st.tabs(labels)
+    for tab, key in zip(tabs, ["summary", "key_points", "mcqs", "practice_questions"]):
+        with tab:
+            st.markdown(kit[key])
+    if kit["flashcards"]:
+        with tabs[4]:
+            for question, answer in kit["flashcards"]:
+                with st.expander(question):
+                    st.write(answer)
+    st.caption("Review AI-generated answers against your source material.")
 
-            tab_names = ["📄 Summary", "🔑 Key Concepts", "📝 MCQs", "❓ Practice Questions"]
-            if include_flashcards and flashcards_raw:
-                tab_names.append("🎴 Flashcards")
-
-            result_tabs = st.tabs(tab_names)
-
-            with result_tabs[0]:
-                show_text(summary)
-            with result_tabs[1]:
-                show_text(key_points)
-            with result_tabs[2]:
-                show_text(mcqs)
-            with result_tabs[3]:
-                show_text(questions)
-
-            if include_flashcards and flashcards_raw:
-                with result_tabs[4]:
-                    st.caption("Click a card to reveal the answer.")
-                    cards = parse_flashcards(flashcards_raw)
-                    if cards:
-                        cols = st.columns(2)
-                        for i, (q, a) in enumerate(cards):
-                            with cols[i % 2]:
-                                with st.expander(f"🔹 {q}"):
-                                    st.write(a)
-                    else:
-                        show_text(flashcards_raw)
-
-        except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower():
-                st.error("The AI service is temporarily busy (rate limit reached). Please wait a minute and try again.")
-            else:
-                st.error("Something went wrong while generating your revision kit. Please try again.")
-            with st.expander("Technical details (for debugging)"):
-                st.code(str(e))
-
-st.markdown("---")
-st.caption("StudyGen AI — Built for Aspire Pakistan Hackathon 🇵🇰")
+st.divider()
+st.caption("HEC-NCEAC & PEC Generative & Agentic AI Training — Cohort 11 Midterm Hackathon")

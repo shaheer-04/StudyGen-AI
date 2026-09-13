@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ from prompts import (
     MCQ_PROMPT,
     PRACTICE_QUESTIONS_PROMPT,
     FLASHCARDS_PROMPT,
+    REVISION_KIT_PROMPT,
 )
 
 
@@ -17,7 +19,7 @@ from prompts import (
 load_dotenv(Path(__file__).with_name(".env"))
 
 
-def call_ai(prompt: str) -> str:
+def call_ai(prompt: str, max_tokens: int = 512) -> str:
     api_key = os.getenv("GROQ_API_KEY")
     model = os.getenv("GROQ_MODEL")
 
@@ -34,7 +36,7 @@ def call_ai(prompt: str) -> str:
     ) as client:
         response = client.chat.completions.create(
             model=model,
-            max_completion_tokens=512,
+            max_completion_tokens=max_tokens,
             messages=[
                 {
                     "role": "system",
@@ -62,6 +64,41 @@ def call_ai(prompt: str) -> str:
         raise RuntimeError("Groq returned no text.")
 
     return text.strip()
+
+
+def generate_revision_kit(study_text: str, include_flashcards: bool = False) -> dict:
+    if not study_text.strip():
+        raise ValueError("Please provide some study material.")
+    if len(study_text) > 15000:
+        raise ValueError("Please use at most 15,000 characters.")
+    prompt = REVISION_KIT_PROMPT.format(
+        study_text=study_text,
+        flashcard_instruction=(
+            "Include 1 or 2 cards, each with Q: and A: on separate lines."
+            if include_flashcards else "Write NONE in the flashcards section."
+        ),
+    )
+    raw = call_ai(prompt, max_tokens=800)
+    names = ["SUMMARY", "KEY_POINTS", "MCQS", "PRACTICE_QUESTIONS", "FLASHCARDS"]
+    pattern = r"^\[\[(SUMMARY|KEY_POINTS|MCQS|PRACTICE_QUESTIONS|FLASHCARDS)\]\]\s*$"
+    matches = list(re.finditer(pattern, raw, flags=re.MULTILINE))
+    if [m.group(1) for m in matches] != names:
+        raise RuntimeError("The AI returned an incomplete kit. No partial kit was saved.")
+    kit = {}
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(raw)
+        value = raw[match.end():end].strip()
+        if not value or (index < 4 and value.upper() == "NONE"):
+            raise RuntimeError("The AI left a required section empty.")
+        kit[names[index].lower()] = value
+    if include_flashcards:
+        cards = re.findall(r"^Q:\s*(.+)\nA:\s*(.+)", kit["flashcards"], re.MULTILINE)
+        if not cards:
+            raise RuntimeError("The AI returned invalid flashcards.")
+        kit["flashcards"] = cards
+    else:
+        kit["flashcards"] = []
+    return kit
 
 def generate_summary(study_text: str) -> str:
     if not study_text.strip():
