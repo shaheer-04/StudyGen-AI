@@ -56,3 +56,22 @@ practice questions.
 Study material:
 {study_text}
 """
+
+
+FLASHCARDS_PROMPT = """
+Using only the study material below, create up to 5 revision flashcards.
+
+- Test a different important concept on each card.
+- Keep answers brief and accurate.
+- Return fewer cards if the material is short.
+- Do not add outside information.
+- Use exactly the format below, without numbering, Markdown, or an introduction.
+- Keep each question and answer on one line.
+- Separate cards with a blank line.
+
+Q: Question here
+A: Answer here
+
+Study material:
+{study_text}
+"""

@@ -32,7 +32,7 @@ Upload PDF / Paste Text
   ↓
 Text Extraction (PyPDF)
   ↓
-Generative AI (Gemini API)
+Generative AI (Groq API)
   ↓
 Summary + Key Points + MCQs + Practice Questions + Flashcards
   ↓
@@ -42,7 +42,7 @@ Revision Kit (Streamlit UI)
 ### 6. Technology Stack
 - Python
 - Streamlit (web interface)
-- Google Gemini API (content generation)
+- Groq API (content generation)
 - PyPDF (PDF text extraction)
 - Git / GitHub (version control and collaboration)
 - Streamlit Community Cloud (deployment)

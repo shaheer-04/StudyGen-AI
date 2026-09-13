@@ -66,7 +66,10 @@ st.markdown("---")
 # --------------------------------------------------------------------
 st.header("2. Generate Your Revision Kit")
 
-include_flashcards = st.checkbox("🎴 Also generate flashcards", value=True)
+include_flashcards = st.checkbox(
+    "🎴 Also generate flashcards",
+    value=False,
+)
 
 if st.button("🚀 Generate Revision Kit", type="primary"):
     if not study_text or len(study_text.strip()) < 50:
