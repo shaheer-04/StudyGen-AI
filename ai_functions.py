@@ -9,6 +9,7 @@ from prompts import (
     KEY_POINTS_PROMPT,
     MCQ_PROMPT,
     PRACTICE_QUESTIONS_PROMPT,
+    FLASHCARDS_PROMPT,
 )
 
 
@@ -79,6 +80,12 @@ def generate_practice_questions(study_text: str) -> str:
     )
     return call_ai(prompt)
 
+def generate_flashcards(study_text: str) -> str:
+    if not study_text.strip():
+        raise ValueError("Please provide some study material.")
+
+    prompt = FLASHCARDS_PROMPT.format(study_text=study_text)
+    return call_ai(prompt)
 
 
 

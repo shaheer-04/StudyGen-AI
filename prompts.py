@@ -53,6 +53,17 @@ practice questions.
 - Every question must be answerable from the supplied material.
 - Return only numbered questions, without answers or an introduction.
 
+
 Study material:
 {study_text}
 """
+FLASHCARDS_PROMPT = """Using ONLY the following study material, create 8 flashcards for revision.
+Format each flashcard EXACTLY like this, with one blank line between cards:
+
+Q: <short question or term>
+A: <concise answer or definition, one or two sentences>
+
+Do not include anything else outside this format.
+
+Study material:
+{study_text}"""

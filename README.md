@@ -16,8 +16,10 @@ creates:
 - 🔑 Key concepts
 - 📝 MCQs with answers
 - ❓ Practice questions
+- 🎴 Flashcards for quick review
 
 All generated **only from your own uploaded material** — not generic AI answers.
+Results are organized into clean tabs so you can flip between sections instantly.
 
 ## How It Works
 
@@ -30,7 +32,7 @@ Text Extraction
   ↓
 Generative AI (Gemini)
   ↓
-Summary + Key Points + MCQs + Practice Questions
+Summary + Key Points + MCQs + Practice Questions + Flashcards
   ↓
 Revision Kit
 ```
@@ -61,7 +63,7 @@ Revision Kit
 3. Create a `.env` file in the project folder with:
    ```
    GEMINI_API_KEY=your_api_key_here
-   GEMINI_MODEL=gemini-3.6-flash
+   GEMINI_MODEL=gemini-3.5-flash-lite
    ```
 4. Run the app:
    ```bash
@@ -71,10 +73,10 @@ Revision Kit
 
 ## Future Improvements
 
-- Flashcards
 - Interactive quiz mode with scoring
 - Difficulty level selector
 - Support for more document formats
+- Progress tracking across study sessions
 
 ---
 
